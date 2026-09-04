@@ -1,0 +1,9 @@
+schema: 1
+description: "CI image with Buf and clang-format."
+
+variants:
+  - tag: "1.50.0"
+    build_args:
+      BASE_IMAGE: "debian:bookworm-slim"
+      BUF_VERSION: "1.50.0"
+      CLANG_FORMAT_VERSION: "14"

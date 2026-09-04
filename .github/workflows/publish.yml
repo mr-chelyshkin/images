@@ -1,0 +1,127 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-changes:
+    name: Detect changed directories
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.get-changes.outputs.matrix }}
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare matrix
+        id: get-changes
+        shell: bash
+        env:
+          BASE_COMMIT: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          matrix=$(bash .github/scripts/build-matrix.sh "$BASE_COMMIT")
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Build matrix: $matrix"
+
+  build:
+    name: Publish ${{ matrix.image }}:${{ matrix.tag }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '[]'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: publish-${{ matrix.image }}-${{ matrix.tag }}
+      queue: max
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Skip superseded image sources
+        id: revision
+        shell: bash
+        env:
+          IMAGE_CONTEXT: ${{ matrix.context }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          newer_changes=$(git rev-list --full-history --max-count=1 HEAD..origin/main -- \
+            "$IMAGE_CONTEXT" .github/workflows/publish.yml .github/scripts)
+          if git merge-base --is-ancestor HEAD origin/main \
+            && [[ -z "$newer_changes" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping $IMAGE_CONTEXT: main contains newer image sources or publish logic."
+          fi
+
+      - name: Set up QEMU
+        if: steps.revision.outputs.publish == 'true'
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        with:
+          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64
+
+      - name: Set up Buildx
+        if: steps.revision.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+        with:
+          driver-opts: image=moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
+
+      - name: Log in to GHCR
+        if: steps.revision.outputs.publish == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image metadata
+        if: steps.revision.outputs.publish == 'true'
+        id: metadata
+        shell: bash
+        run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        if: steps.revision.outputs.publish == 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}
+            ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}-sha-${{ github.sha }}
+          build-args: ${{ matrix.build_args }}
+          labels: |
+            org.opencontainers.image.authors=mr-chelyshkin
+            org.opencontainers.image.created=${{ steps.metadata.outputs.created }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.version=${{ matrix.tag }}
+          annotations: |
+            index:org.opencontainers.image.description=${{ matrix.description }}

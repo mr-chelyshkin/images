@@ -1,0 +1,8 @@
+schema: 1
+description: "AWS CLI v2 image for CI workflows."
+
+variants:
+  - tag: "2.36.24"
+    build_args:
+      BASE_IMAGE: "debian:bookworm-slim"
+      AWS_CLI_VERSION: "2.36.24"

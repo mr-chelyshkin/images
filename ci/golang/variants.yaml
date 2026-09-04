@@ -1,0 +1,10 @@
+schema: 1
+description: "Go CI image with gofumpt, golangci-lint, and govulncheck."
+
+variants:
+  - tag: "1.26.4"
+    build_args:
+      BASE_IMAGE: "golang:1.26.4"
+      GOFUMPT_VERSION: "v0.7.0"
+      GOLANGCI_LINT_VERSION: "v2.9.0"
+      GOVULNCHECK_VERSION: "v1.7.0"

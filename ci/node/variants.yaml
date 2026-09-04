@@ -1,0 +1,8 @@
+schema: 1
+description: "Node.js image for npm CI workflows."
+
+variants:
+  - tag: "22.23.1"
+    build_args:
+      BASE_IMAGE: "node:22.23.1-bookworm-slim"
+      NODE_VERSION: "22.23.1"

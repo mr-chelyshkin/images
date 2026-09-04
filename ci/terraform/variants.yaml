@@ -1,0 +1,8 @@
+schema: 1
+description: "Terraform CLI image for CI workflows."
+
+variants:
+  - tag: "1.15.9"
+    build_args:
+      BASE_IMAGE: "debian:bookworm-slim"
+      TERRAFORM_VERSION: "1.15.9"

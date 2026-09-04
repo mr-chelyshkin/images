@@ -5,7 +5,6 @@
 Container images for my local Taskfile commands and CI workflows.
 
 The publish target prefix is `ghcr.io/mr-chelyshkin/`. 
-A reference becomes usable only after its workflow run succeeds.
 
 ## Images
 
@@ -19,7 +18,6 @@ A reference becomes usable only after its workflow run succeeds.
 | [`ci/terraform`](ci/terraform) | `1.15.9`  | Terraform `1.15.9`, Bash, Git, curl, unzip                                  |
 
 The workflow builds all current images for `linux/amd64` and `linux/arm64`. 
-Each image uses `/workspace`; pass the complete command after the image reference.
 
 ## Use an image directly
 
@@ -50,8 +48,10 @@ docker run --rm --interactive --tty \
 
 ## Taskfile consumers
 
-These images can be used with the companion [Taskfiles repository](https://github.com/mr-chelyshkin/tasks), which provides 
-reusable tasks for local development and CI. See its documentation for setup, configuration, and usage.
+These images can be used with the companion [Taskfiles repository](https://github.com/mr-chelyshkin/tasks), which provides
+reusable tasks for local development and CI.
+
+> See the [Taskfiles documentation](https://github.com/mr-chelyshkin/tasks#quick-start) for setup, configuration, and usage.
 
 ## Add an image or variant
 

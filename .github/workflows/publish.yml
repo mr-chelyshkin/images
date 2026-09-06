@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 0'
 
 permissions:
   contents: read
@@ -105,12 +107,17 @@ jobs:
 
       - name: Build and push image
         if: steps.revision.outputs.publish == 'true'
+        id: publish
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
+        env:
+          DOCKER_BUILD_SUMMARY: 'false'
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.context }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          pull: ${{ github.event_name == 'schedule' }}
+          no-cache: ${{ github.event_name == 'schedule' }}
           tags: |
             ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}
             ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}-sha-${{ github.sha }}
@@ -125,3 +132,36 @@ jobs:
             org.opencontainers.image.version=${{ matrix.tag }}
           annotations: |
             index:org.opencontainers.image.description=${{ matrix.description }}
+
+      - name: Set up Trivy
+        if: steps.publish.outputs.digest != ''
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          version: v0.74.0
+
+      - name: Report vulnerabilities
+        if: ${{ !cancelled() && steps.publish.outcome == 'success' && steps.publish.outputs.digest != '' }}
+        shell: bash
+        env:
+          IMAGE_REF: ghcr.io/mr-chelyshkin/${{ matrix.image }}@${{ steps.publish.outputs.digest }}
+          IMAGE_TAG: ${{ matrix.image }}:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+
+          printf '## Trivy — %s\n\n`%s`\n\n' "$IMAGE_TAG" "$IMAGE_REF" >> "$GITHUB_STEP_SUMMARY"
+          echo 'HIGH/CRITICAL findings, including those without a fix. Counts are package findings, not unique CVEs.' >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          for arch in amd64 arm64; do
+            printf '\n### linux/%s\n\n' "$arch" >> "$GITHUB_STEP_SUMMARY"
+            if trivy image --image-src remote --platform "linux/$arch" \
+              --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed=false \
+              --format template --template @.github/scripts/trivy-summary.tpl \
+              --output "$RUNNER_TEMP/trivy-$arch.md" --timeout 15m --exit-code 0 \
+              "$IMAGE_REF"; then
+              cat "$RUNNER_TEMP/trivy-$arch.md" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo '**Scan failed. See the step log; vulnerability status is unknown.**' >> "$GITHUB_STEP_SUMMARY"
+              status=1
+            fi
+          done
+          exit "$status"

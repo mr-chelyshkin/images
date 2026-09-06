@@ -3,6 +3,10 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS cargo-tools
 
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/*
+
 ARG CARGO_AUDIT_VERSION
 
 RUN cargo install cargo-audit \
@@ -12,6 +16,10 @@ RUN cargo install cargo-audit \
   --root /opt/cargo-tools
 
 FROM ${BASE_IMAGE}
+
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/*
 
 ARG CARGO_AUDIT_VERSION
 ARG RUST_VERSION

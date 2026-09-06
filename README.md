@@ -90,6 +90,9 @@ variants:
 - A manual workflow dispatch publishes the complete matrix. 
 - Changes to the shared workflow or matrix scripts also publish the complete matrix.
 
+> Every Sunday, a scheduled run rebuilds and publishes the complete matrix.
+> This picks up available system package updates and security fixes without requiring source changes.
+
 For each variant, the workflow publishes:
 
 - `<version>`;
@@ -97,5 +100,5 @@ For each variant, the workflow publishes:
 
 > It does not publish `latest`. 
  
-The workflow writes OCI source, revision, version, creation time, title, author,
-and description metadata, including description on the root multi-platform index.
+The workflow writes OCI source, revision, version, creation time, title, author, and description metadata, 
+including description on the root multi-platform index.

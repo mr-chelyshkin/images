@@ -99,3 +99,8 @@ For each variant, the workflow publishes:
  
 The workflow writes OCI source, revision, version, creation time, title, author,
 and description metadata, including description on the root multi-platform index.
+
+## Vulnerability scans
+
+The [Vulnerabilities workflow](https://github.com/mr-chelyshkin/images/actions/workflows/vulnerabilities.yml)
+scans published images daily. See [scan coverage, reports and CVE handling](.github/security/README.md).

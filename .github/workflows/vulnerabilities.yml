@@ -1,0 +1,147 @@
+name: Vulnerabilities
+
+on:
+  schedule:
+    # Daily at 06:17 Asia/Tbilisi (02:17 UTC).
+    - cron: '17 2 * * *'
+
+permissions:
+  contents: read
+
+env:
+  FAIL_SEVERITIES: HIGH,CRITICAL
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  inventory:
+    name: List published image targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Prepare complete scan matrix
+        id: targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix=$(bash .github/scripts/build-matrix.sh | jq -ce '
+            [to_entries[] | .key as $index | .value as $variant |
+             ["amd64", "arm64"][] | {
+               id: (($index | tostring) + "-" + .),
+               image: ("ghcr.io/mr-chelyshkin/" + $variant.image),
+               context: $variant.context,
+               tag: $variant.tag,
+               platform: ("linux/" + .)
+             }] | if length > 0 then . else error("empty scan inventory") end')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan ${{ matrix.context }}:${{ matrix.tag }} (${{ matrix.platform }})
+    needs: inventory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.inventory.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz \
+            --output "$RUNNER_TEMP/trivy.tar.gz"
+          echo "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a  $RUNNER_TEMP/trivy.tar.gz" \
+            | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+
+      - name: Scan immutable platform digest
+        shell: bash
+        env:
+          IMAGE: ${{ matrix.image }}
+          CONTEXT: ${{ matrix.context }}
+          TAG: ${{ matrix.tag }}
+          PLATFORM: ${{ matrix.platform }}
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+        run: |
+          set -euo pipefail
+          ignorefile=".github/security/ignores/$CONTEXT/$TAG/.trivyignore.yaml"
+          if [[ ! -f "$ignorefile" ]]; then
+            ignorefile=.github/security/.trivyignore.yaml
+          fi
+          python3 .github/security/scan.py \
+            --image "$IMAGE" --tag "$TAG" --platform "$PLATFORM" \
+            --ignorefile "$ignorefile" --output "$RUNNER_TEMP/trivy-report"
+
+      - name: Save scan evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-${{ matrix.id }}
+          path: ${{ runner.temp }}/trivy-report/
+          if-no-files-found: error
+          retention-days: 90
+
+  report:
+    name: Complete vulnerability report
+    if: always()
+    needs: [inventory, scan]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Download every scan report
+        id: download
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: trivy-*
+          path: ${{ runner.temp }}/trivy-reports
+
+      - name: Report all targets and evaluate policy
+        if: always()
+        shell: bash
+        env:
+          MATRIX: ${{ needs.inventory.outputs.matrix }}
+          SCAN_RESULT: ${{ needs.scan.result }}
+          DOWNLOAD_RESULT: ${{ steps.download.outcome }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$MATRIX" > "$RUNNER_TEMP/trivy-matrix.json"
+          upstream="$SCAN_RESULT"
+          if [[ "$DOWNLOAD_RESULT" != success ]]; then
+            upstream="artifact download $DOWNLOAD_RESULT"
+          fi
+          exit_code=0
+          python3 .github/security/report.py \
+            --matrix "$RUNNER_TEMP/trivy-matrix.json" \
+            --reports "$RUNNER_TEMP/trivy-reports" \
+            --severity "$FAIL_SEVERITIES" --upstream "$upstream" \
+            --output "$RUNNER_TEMP/trivy-summary.md" || exit_code=$?
+          cat "$RUNNER_TEMP/trivy-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          exit "$exit_code"
+
+      - name: Save combined report and inventory
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vulnerability-summary
+          path: |
+            ${{ runner.temp }}/trivy-summary.md
+            ${{ runner.temp }}/trivy-matrix.json
+          if-no-files-found: error
+          retention-days: 90

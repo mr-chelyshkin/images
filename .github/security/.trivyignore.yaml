@@ -1,0 +1,4 @@
+# Empty default: no CVEs are accepted globally.
+# Put exceptions for a specific image/tag in
+# .github/security/ignores/ci/<name>/<tag>/.trivyignore.yaml.
+vulnerabilities: []

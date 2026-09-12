@@ -4,13 +4,13 @@
 
 <p align="center">
   <img src=".github/assets/readme-header.png"
-       alt="An engraved dock crane arranging containers"
+       alt="github.com/mr-chelyshkin/images"
        width="800">
 </p>
 
-Container images for my local Taskfile commands and CI workflows.
+### Container images for my local Taskfile commands and CI workflows.
 
-The publish target prefix is `ghcr.io/mr-chelyshkin/`. 
+The publishing target prefix is `ghcr.io/mr-chelyshkin/`. 
 
 ## Images
 

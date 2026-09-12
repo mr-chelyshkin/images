@@ -1,0 +1,10 @@
+schema: 1
+description: "Python CI image with uv for locked project environments and package builds."
+
+variants:
+  - tag: "3.14.7"
+    build_args:
+      BASE_IMAGE: "python:3.14.7-slim-bookworm"
+      PYTHON_VERSION: "3.14.7"
+      UV_IMAGE: "ghcr.io/astral-sh/uv:0.12.9"
+      UV_VERSION: "0.12.9"

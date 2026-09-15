@@ -14,15 +14,16 @@ The publishing target prefix is `ghcr.io/mr-chelyshkin/`.
 
 ## Images
 
-| Context                        | Tag       | Included tools                                                              |
-|--------------------------------|-----------|-----------------------------------------------------------------------------|
-| [`ci/aws`](ci/aws)             | `2.36.24` | AWS CLI v2 `2.36.24`                                                        |
-| [`ci/golang`](ci/golang)       | `1.26.4`  | Go `1.26.4`, gofumpt `v0.7.0`, golangci-lint `v2.9.0`, govulncheck `v1.7.0` |
-| [`ci/node`](ci/node)           | `22.23.1` | Node.js `22.23.1`; npm from the base image, not pinned separately           |
-| [`ci/proto`](ci/proto)         | `1.50.0`  | Buf `1.50.0`, clang-format `14.x` from Debian bookworm                      |
-| [`ci/python`](ci/python)       | `3.14.7`  | Python `3.14.7`, uv `0.12.9`                                                |
-| [`ci/rust`](ci/rust)           | `1.90.0`  | Rust `1.90.0`, rustfmt, Clippy, cargo-audit `0.22.0`                        |
-| [`ci/terraform`](ci/terraform) | `1.15.9`  | Terraform `1.15.9`, Bash, Git, curl, unzip                                  |
+| Context                        | Tag       | Included tools                                                               |
+|--------------------------------|-----------|------------------------------------------------------------------------------|
+| [`ci/aws`](ci/aws)             | `2.36.24` | AWS CLI v2 `2.36.24`                                                         |
+| [`ci/golang`](ci/golang)       | `1.26.4`  | Go `1.26.4`, gofumpt `v0.7.0`, golangci-lint `v2.9.0`, govulncheck `v1.7.0`  |
+| [`ci/golang`](ci/golang)       | `1.27.1`  | Go `1.27.1`, gofumpt `v0.7.0`, golangci-lint `v2.13.2`, govulncheck `v1.7.0` |
+| [`ci/node`](ci/node)           | `22.23.1` | Node.js `22.23.1`; npm from the base image, not pinned separately            |
+| [`ci/proto`](ci/proto)         | `1.50.0`  | Buf `1.50.0`, clang-format `14.x` from Debian bookworm                       |
+| [`ci/python`](ci/python)       | `3.14.7`  | Python `3.14.7`, uv `0.12.9`                                                 |
+| [`ci/rust`](ci/rust)           | `1.90.0`  | Rust `1.90.0`, rustfmt, Clippy, cargo-audit `0.22.0`                         |
+| [`ci/terraform`](ci/terraform) | `1.15.9`  | Terraform `1.15.9`, Bash, Git, curl, unzip                                   |
 
 The workflow builds all current images for `linux/amd64` and `linux/arm64`. 
 
@@ -37,7 +38,7 @@ docker run --rm --init \
   --env GOPATH=/tmp/go \
   --volume "$PWD:/workspace" \
   --workdir /workspace \
-  ghcr.io/mr-chelyshkin/ci/golang:1.26.4 \
+  ghcr.io/mr-chelyshkin/ci/golang:1.27.1 \
   go test ./...
 ```
 

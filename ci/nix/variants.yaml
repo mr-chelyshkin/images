@@ -1,0 +1,8 @@
+schema: 1
+description: "Nix CI image with nixfmt, statix, and deadnix."
+
+variants:
+  - tag: "2.35.2"
+    build_args:
+      BASE_IMAGE: "nixos/nix:2.35.2"
+      NIXPKGS_REV: "a3116115851d68b8952a2a4221cc25a84e56b532"

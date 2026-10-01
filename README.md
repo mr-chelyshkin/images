@@ -19,6 +19,7 @@ The publishing target prefix is `ghcr.io/mr-chelyshkin/`.
 | [`ci/aws`](ci/aws)             | `2.36.24` | AWS CLI v2 `2.36.24`                                                          |
 | [`ci/golang`](ci/golang)       | `1.26.4`  | Go `1.26.4`, gofumpt `v0.7.0`, golangci-lint `v2.9.0`, govulncheck `v1.7.0`   |
 | [`ci/golang`](ci/golang)       | `1.27.1`  | Go `1.27.1`, gofumpt `v0.7.0`, golangci-lint `v2.13.2`, govulncheck `v1.7.0`  |
+| [`ci/markdown`](ci/markdown)   | `1.0.0`   | mdformat `1.0.0`, mdformat-gfm `1.0.0`, Python `3.14.7`                       |
 | [`ci/nix`](ci/nix)             | `2.35.2`  | Nix `2.35.2`, nixfmt `1.4.0`, statix `0-unstable-2026-05-14`, deadnix `1.3.2` |
 | [`ci/node`](ci/node)           | `22.23.1` | Node.js `22.23.1`; npm from the base image, not pinned separately             |
 | [`ci/proto`](ci/proto)         | `1.50.0`  | Buf `1.50.0`, clang-format `14.x` from Debian bookworm                        |

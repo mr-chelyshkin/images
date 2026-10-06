@@ -25,7 +25,8 @@ ARG CARGO_AUDIT_VERSION
 ARG RUST_VERSION
 
 RUN test "$(rustc --version | cut -d ' ' -f 2)" = "${RUST_VERSION}" \
-  && rustup component add --toolchain "${RUST_VERSION}" rustfmt clippy
+  && rustup component add --toolchain "${RUST_VERSION}" rustfmt clippy \
+  && rustup target add --toolchain "${RUST_VERSION}" aarch64-unknown-linux-musl x86_64-unknown-linux-musl
 
 COPY --from=cargo-tools /opt/cargo-tools/bin/cargo-audit /usr/local/bin/
 

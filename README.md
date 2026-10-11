@@ -10,12 +10,12 @@
 
 ### Container images for my local Taskfile commands and CI workflows.
 
-The publishing target prefix is `ghcr.io/mr-chelyshkin/`. 
+The publishing target prefix is `ghcr.io/mr-chelyshkin/`.
 
 ## Images
 
 | Context                        | Tag       | Included tools                                                                |
-|--------------------------------|-----------|-------------------------------------------------------------------------------|
+| ------------------------------ | --------- | ----------------------------------------------------------------------------- |
 | [`ci/aws`](ci/aws)             | `2.36.24` | AWS CLI v2 `2.36.24`                                                          |
 | [`ci/golang`](ci/golang)       | `1.26.4`  | Go `1.26.4`, gofumpt `v0.7.0`, golangci-lint `v2.9.0`, govulncheck `v1.7.0`   |
 | [`ci/golang`](ci/golang)       | `1.27.1`  | Go `1.27.1`, gofumpt `v0.7.0`, golangci-lint `v2.13.2`, govulncheck `v1.7.0`  |
@@ -27,7 +27,7 @@ The publishing target prefix is `ghcr.io/mr-chelyshkin/`.
 | [`ci/rust`](ci/rust)           | `1.90.0`  | Rust `1.90.0`, rustfmt, Clippy, cargo-audit `0.22.0`                          |
 | [`ci/terraform`](ci/terraform) | `1.15.9`  | Terraform `1.15.9`, Bash, Git, curl, unzip                                    |
 
-The workflow builds all current images for `linux/amd64` and `linux/arm64`. 
+The workflow builds all current images for `linux/amd64` and `linux/arm64`.
 
 ## Use an image directly
 
@@ -102,7 +102,7 @@ ci/<name>/
 └── ...             # optional build helpers and configuration
 ```
 
-Use lowercase letters, digits, and internal hyphens for `<name>`. 
+Use lowercase letters, digits, and internal hyphens for `<name>`.
 A minimal manifest is:
 
 ```yaml
@@ -118,8 +118,8 @@ variants:
 
 ## Publishing and tags
 
-- A push to `main` publishes changed image contexts. 
-- A manual workflow dispatch publishes the complete matrix. 
+- A push to `main` publishes changed image contexts.
+- A manual workflow dispatch publishes the complete matrix.
 - Changes to the shared workflow or matrix scripts also publish the complete matrix.
 
 > Every Sunday, a scheduled run rebuilds and publishes the complete matrix.
@@ -130,7 +130,7 @@ For each variant, the workflow publishes:
 - `<version>`;
 - `<version>-sha-<full-commit-sha>`.
 
-> It does not publish `latest`. 
- 
-The workflow writes OCI source, revision, version, creation time, title, author, and description metadata, 
+> It does not publish `latest`.
+
+The workflow writes OCI source, revision, version, creation time, title, author, and description metadata,
 including description on the root multi-platform index.

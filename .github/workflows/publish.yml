@@ -87,7 +87,9 @@ jobs:
           file: ${{ matrix.context }}/Dockerfile
           platforms: ${{ matrix.platform }}
           pull: ${{ github.event_name == 'schedule' }}
-          no-cache: ${{ github.event_name == 'schedule' }}
+          no-cache-filters: ${{ github.event_name == 'schedule' && 'image' || '' }}
+          cache-from: ${{ matrix.cache && format('type=gha,scope={0}-{1}', matrix.slug, matrix.arch) || '' }}
+          cache-to: ${{ matrix.cache && format('type=gha,scope={0}-{1},mode=max', matrix.slug, matrix.arch) || '' }}
           outputs: type=image,name=ghcr.io/mr-chelyshkin/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           build-args: ${{ matrix.build_args }}
           labels: |

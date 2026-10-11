@@ -59,7 +59,17 @@ while IFS= read -r context; do
     exit 1
   fi
 
-  yq -o=json '.' "$context/variants.yaml" | jq -ce --arg context "$context" '
+  stages=$(sed -nE 's/^FROM[[:space:]].*[[:space:]]AS[[:space:]]+([A-Za-z0-9_.-]+)[[:space:]]*$/\1/ip' "$context/Dockerfile")
+  if [[ "$(tail -n 1 <<< "$stages")" != image ]]; then
+    echo "$context/Dockerfile must name its final stage image" >&2
+    exit 1
+  fi
+  cache=false
+  if grep -qx tools <<< "$stages"; then
+    cache=true
+  fi
+
+  yq -o=json '.' "$context/variants.yaml" | jq -ce --arg context "$context" --argjson cache "$cache" '
     def single_line:
       type == "string" and (test("[\\r\\n]") | not);
 
@@ -85,6 +95,7 @@ while IFS= read -r context; do
       context: $context,
       description: $manifest.description,
       tag,
+      cache: $cache,
       build_args: (.build_args | to_entries | map("\(.key)=\(.value)") | join("\n"))
     }
     else error("invalid image contract: \($context)")

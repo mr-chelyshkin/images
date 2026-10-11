@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS image
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \

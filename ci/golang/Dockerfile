@@ -3,10 +3,6 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS tools
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
-  && rm -rf /var/lib/apt/lists/*
-
 ARG GOFUMPT_VERSION
 ARG GOLANGCI_LINT_VERSION
 ARG GOVULNCHECK_VERSION
@@ -15,9 +11,10 @@ ENV GOBIN=/usr/local/bin
 
 RUN go install mvdan.cc/gofumpt@"${GOFUMPT_VERSION}" \
     && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@"${GOLANGCI_LINT_VERSION}" \
-    && go install golang.org/x/vuln/cmd/govulncheck@"${GOVULNCHECK_VERSION}"
+    && go install golang.org/x/vuln/cmd/govulncheck@"${GOVULNCHECK_VERSION}" \
+    && go clean -cache -modcache
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS image
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \

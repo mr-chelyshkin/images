@@ -4,7 +4,7 @@ ARG BASE_IMAGE
 ARG UV_IMAGE
 FROM ${UV_IMAGE} AS uv
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS image
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \

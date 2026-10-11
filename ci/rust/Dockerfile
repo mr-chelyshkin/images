@@ -1,11 +1,7 @@
 # syntax=docker/dockerfile:1
 # check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE} AS cargo-tools
-
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
-  && rm -rf /var/lib/apt/lists/*
+FROM ${BASE_IMAGE} AS tools
 
 ARG CARGO_AUDIT_VERSION
 
@@ -13,9 +9,10 @@ RUN cargo install cargo-audit \
   --version "${CARGO_AUDIT_VERSION}" \
   --locked \
   --features fix \
-  --root /opt/cargo-tools
+  --root /opt/cargo-tools \
+  && rm -rf "${CARGO_HOME}/registry" "${CARGO_HOME}/git"
 
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS image
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
@@ -28,7 +25,7 @@ RUN test "$(rustc --version | cut -d ' ' -f 2)" = "${RUST_VERSION}" \
   && rustup component add --toolchain "${RUST_VERSION}" rustfmt clippy \
   && rustup target add --toolchain "${RUST_VERSION}" aarch64-unknown-linux-musl x86_64-unknown-linux-musl
 
-COPY --from=cargo-tools /opt/cargo-tools/bin/cargo-audit /usr/local/bin/
+COPY --from=tools /opt/cargo-tools/bin/cargo-audit /usr/local/bin/
 
 RUN test "$(cargo-audit --version)" = "cargo-audit ${CARGO_AUDIT_VERSION}"
 

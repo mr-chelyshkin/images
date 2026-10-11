@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.get-changes.outputs.matrix }}
+      builds: ${{ steps.get-changes.outputs.builds }}
+      created: ${{ steps.get-changes.outputs.created }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,15 +34,94 @@ jobs:
         run: |
           set -euo pipefail
 
-          matrix=$(bash .github/scripts/build-matrix.sh "$BASE_COMMIT")
+          matrix=$(bash .github/scripts/build-matrix.sh "$BASE_COMMIT" \
+            | jq -c 'map(. + {slug: "\(.image | gsub("/"; "-"))-\(.tag)"})')
+          builds=$(jq -c '[.[] | . as $variant
+            | ({arch: "amd64", runner: "ubuntu-24.04"}, {arch: "arm64", runner: "ubuntu-24.04-arm"})
+            | $variant + . + {platform: "linux/\(.arch)"}]' <<< "$matrix")
 
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          {
+            echo "matrix=$matrix"
+            echo "builds=$builds"
+            echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_OUTPUT"
           echo "Build matrix: $matrix"
 
   build:
-    name: Publish ${{ matrix.image }}:${{ matrix.tag }}
+    name: Build ${{ matrix.image }}:${{ matrix.tag }} (${{ matrix.arch }})
     needs: detect-changes
     if: needs.detect-changes.outputs.matrix != '[]'
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.builds) }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: image=moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_SUMMARY: 'false'
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: ${{ matrix.platform }}
+          pull: ${{ github.event_name == 'schedule' }}
+          no-cache: ${{ github.event_name == 'schedule' }}
+          outputs: type=image,name=ghcr.io/mr-chelyshkin/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          build-args: ${{ matrix.build_args }}
+          labels: |
+            org.opencontainers.image.authors=mr-chelyshkin
+            org.opencontainers.image.created=${{ needs.detect-changes.outputs.created }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/tree/main/${{ matrix.context }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.version=${{ matrix.tag }}
+
+      - name: Export digest
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/digest"
+          printf '%s\n' "$DIGEST" > "$RUNNER_TEMP/digest/$ARCH"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.slug }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digest/${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.image }}:${{ matrix.tag }}
+    needs: [detect-changes, build]
+    if: ${{ !cancelled() && needs.detect-changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04
     concurrency:
       group: publish-${{ matrix.image }}-${{ matrix.tag }}
@@ -78,18 +159,17 @@ jobs:
             echo "Skipping $IMAGE_CONTEXT: main contains newer image sources or publish logic."
           fi
 
-      - name: Set up QEMU
+      - name: Download digests
         if: steps.revision.outputs.publish == 'true'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
-          platforms: arm64
+          pattern: digest-${{ matrix.slug }}-{amd64,arm64}
+          path: ${{ runner.temp }}/digest
+          merge-multiple: true
 
       - name: Set up Buildx
         if: steps.revision.outputs.publish == 'true'
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          driver-opts: image=moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8
 
       - name: Log in to GHCR
         if: steps.revision.outputs.publish == 'true'
@@ -99,50 +179,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare image metadata
+      - name: Create multi-platform image
         if: steps.revision.outputs.publish == 'true'
-        id: metadata
+        id: manifest
         shell: bash
-        run: echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push image
-        if: steps.revision.outputs.publish == 'true'
-        id: publish
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         env:
-          DOCKER_BUILD_SUMMARY: 'false'
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          pull: ${{ github.event_name == 'schedule' }}
-          no-cache: ${{ github.event_name == 'schedule' }}
-          tags: ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}
-          build-args: ${{ matrix.build_args }}
-          labels: |
-            org.opencontainers.image.authors=mr-chelyshkin
-            org.opencontainers.image.created=${{ steps.metadata.outputs.created }}
-            org.opencontainers.image.description=${{ matrix.description }}
-            org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/tree/main/${{ matrix.context }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.version=${{ matrix.tag }}
-          annotations: |
-            index:org.opencontainers.image.description=${{ matrix.description }}
+          IMAGE: ghcr.io/mr-chelyshkin/${{ matrix.image }}
+          TAG: ${{ matrix.tag }}
+          DESCRIPTION: ${{ matrix.description }}
+        run: |
+          set -euo pipefail
+
+          sources=()
+          for arch in amd64 arm64; do
+            digest_file="$RUNNER_TEMP/digest/$arch"
+            if [[ ! -s "$digest_file" ]]; then
+              echo "::error::Missing linux/$arch digest for $IMAGE:$TAG."
+              exit 1
+            fi
+            sources+=("$IMAGE@$(<"$digest_file")")
+          done
+
+          docker buildx imagetools create \
+            --tag "$IMAGE:$TAG" \
+            --annotation "index:org.opencontainers.image.description=$DESCRIPTION" \
+            "${sources[@]}"
+
+          digest=$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools inspect "$IMAGE@$digest"
 
       - name: Set up Trivy
-        if: steps.publish.outputs.digest != ''
+        if: steps.manifest.outputs.digest != ''
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.74.0
 
       - name: Report vulnerabilities
-        if: ${{ !cancelled() && steps.publish.outcome == 'success' && steps.publish.outputs.digest != '' }}
+        if: ${{ !cancelled() && steps.manifest.outcome == 'success' && steps.manifest.outputs.digest != '' }}
         shell: bash
         env:
-          IMAGE_REF: ghcr.io/mr-chelyshkin/${{ matrix.image }}@${{ steps.publish.outputs.digest }}
+          IMAGE_REF: ghcr.io/mr-chelyshkin/${{ matrix.image }}@${{ steps.manifest.outputs.digest }}
           IMAGE_TAG: ${{ matrix.image }}:${{ matrix.tag }}
         run: |
           set -euo pipefail
@@ -167,7 +244,7 @@ jobs:
 
   cleanup:
     name: Clean up untagged images
-    needs: [detect-changes, build]
+    needs: [detect-changes, publish]
     if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04
     concurrency:

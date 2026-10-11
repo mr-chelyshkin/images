@@ -11,4 +11,5 @@ Thumbs.db
 *.log
 
 # Task runner cache
+.cache/
 .task/

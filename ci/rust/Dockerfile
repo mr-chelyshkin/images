@@ -32,4 +32,22 @@ COPY --from=cargo-tools /opt/cargo-tools/bin/cargo-audit /usr/local/bin/
 
 RUN test "$(cargo-audit --version)" = "cargo-audit ${CARGO_AUDIT_VERSION}"
 
+ARG BASE_IMAGE
+
+RUN kv() { printf '%s="%s"\n' "$1" "$2"; } \
+  && { \
+    kv IMAGE ci/rust; \
+    kv RUST "$(rustc --version | awk '{ print $2 }')"; \
+    kv CARGO "$(cargo --version | awk '{ print $2 }')"; \
+    kv RUSTFMT "$(rustfmt --version | awk '{ print $2 }')"; \
+    kv CLIPPY "$(cargo clippy --version | awk '{ print $2 }')"; \
+    kv CARGO_AUDIT "$(cargo-audit --version | awk '{ print $2 }')"; \
+    kv TARGETS "$(rustup target list --installed | tr '\n' ' ' | sed 's/ $//')"; \
+    kv BASE "${BASE_IMAGE}"; \
+    kv OS "$(. /etc/os-release && echo "$PRETTY_NAME")"; \
+    kv DOCS https://github.com/mr-chelyshkin/images/tree/main/ci/rust; \
+  } > /etc/ci-image \
+  && ! grep -q '=""$' /etc/ci-image \
+  && cat /etc/ci-image
+
 WORKDIR /workspace

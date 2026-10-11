@@ -37,7 +37,7 @@ changed_contexts() {
   done <<< "$changed_files"
 
   while IFS= read -r file; do
-    if [[ "$file" == ci/*/* ]]; then
+    if [[ "$file" == ci/*/* && "$file" != *.md ]]; then
       file="${file#ci/}"
       printf 'ci/%s\n' "${file%%/*}"
     fi
@@ -54,8 +54,8 @@ while IFS= read -r context; do
     exit 1
   fi
 
-  if [[ ! -f "$context/Dockerfile" || ! -f "$context/variants.yaml" ]]; then
-    echo "$context must contain Dockerfile and variants.yaml" >&2
+  if [[ ! -f "$context/Dockerfile" || ! -f "$context/README.md" || ! -f "$context/variants.yaml" ]]; then
+    echo "$context must contain Dockerfile, README.md and variants.yaml" >&2
     exit 1
   fi
 
@@ -63,9 +63,8 @@ while IFS= read -r context; do
     def single_line:
       type == "string" and (test("[\\r\\n]") | not);
 
-    # Leave 45 characters for the -sha-<40-character commit> suffix.
     def image_tag:
-      single_line and test("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,82}$");
+      single_line and test("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$");
 
     if (
       .schema == 1

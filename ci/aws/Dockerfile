@@ -14,4 +14,17 @@ RUN --mount=type=bind,source=install.sh,target=/tmp/install-aws-cli,ro \
 
 ENV AWS_PAGER=""
 
+ARG BASE_IMAGE
+
+RUN kv() { printf '%s="%s"\n' "$1" "$2"; } \
+  && { \
+    kv IMAGE ci/aws; \
+    kv AWS_CLI "$(aws --version 2>&1 | sed -n 's|^aws-cli/\([^ ]*\) .*|\1|p')"; \
+    kv BASE "${BASE_IMAGE}"; \
+    kv OS "$(. /etc/os-release && echo "$PRETTY_NAME")"; \
+    kv DOCS https://github.com/mr-chelyshkin/images/tree/main/ci/aws; \
+  } > /etc/ci-image \
+  && ! grep -q '=""$' /etc/ci-image \
+  && cat /etc/ci-image
+
 WORKDIR /workspace

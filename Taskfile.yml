@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3.53.1'
+
+includes:
+  markdown:
+    # v0.0.5
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/81255f635d839a2b46417720676cd2bebfc10cff/taskfiles/markdown/Taskfile.yml
+    internal: true
+
+vars:
+  markdown_paths: README.md ci
+
+tasks:
+  ci/markdown/fmt:
+    desc: Check Markdown formatting
+    cmds:
+      - task: markdown:fmt
+        vars:
+          FMT_PATHS: '{{.markdown_paths}}'
+          TASK_CONTEXT:
+            ref: 'merge (dict) (dict "CONTAINER_MOUNT_MODE" "ro") (.TASK_CONTEXT | default .)'
+
+  markdown/fix:
+    desc: Fix Markdown formatting
+    cmds:
+      - task: markdown:fmt/fix
+        vars:
+          FMT_PATHS: '{{.markdown_paths}}'

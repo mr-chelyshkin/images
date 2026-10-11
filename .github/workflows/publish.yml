@@ -118,14 +118,13 @@ jobs:
           push: true
           pull: ${{ github.event_name == 'schedule' }}
           no-cache: ${{ github.event_name == 'schedule' }}
-          tags: |
-            ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}
-            ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}-sha-${{ github.sha }}
+          tags: ghcr.io/mr-chelyshkin/${{ matrix.image }}:${{ matrix.tag }}
           build-args: ${{ matrix.build_args }}
           labels: |
             org.opencontainers.image.authors=mr-chelyshkin
             org.opencontainers.image.created=${{ steps.metadata.outputs.created }}
             org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/tree/main/${{ matrix.context }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.title=${{ matrix.image }}
@@ -165,6 +164,33 @@ jobs:
             fi
           done
           exit "$status"
+
+  cleanup:
+    name: Clean up untagged images
+    needs: [detect-changes, build]
+    if: ${{ !cancelled() && needs.detect-changes.result == 'success' && needs.detect-changes.outputs.matrix != '[]' }}
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ghcr-cleanup
+      queue: max
+      cancel-in-progress: false
+    permissions:
+      packages: write
+    steps:
+      - name: Select packages
+        id: packages
+        shell: bash
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
+        run: echo "list=$(jq -r '[.[].image] | unique | join(",")' <<< "$MATRIX")" >> "$GITHUB_OUTPUT"
+
+      - name: Delete untagged images
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          packages: ${{ steps.packages.outputs.list }}
+          delete-tags: '*-sha-*'
+          delete-untagged: true
+          older-than: 1 hour
 
   keepalive:
     name: Keep schedule enabled

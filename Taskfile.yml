@@ -3,8 +3,8 @@ version: '3.53.1'
 
 includes:
   markdown:
-    # v0.0.5
-    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/81255f635d839a2b46417720676cd2bebfc10cff/taskfiles/markdown/Taskfile.yml
+    # v0.1.0
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/3aa8c569bdc71b41fa50fc33f66e2ef1317813ed/taskfiles/markdown/Taskfile.yml
     internal: true
 
 vars:
@@ -12,17 +12,15 @@ vars:
 
 tasks:
   ci/markdown/fmt:
-    desc: Check Markdown formatting
+    desc: Check Markdown formatting.
     cmds:
       - task: markdown:fmt
         vars:
-          FMT_PATHS: '{{.markdown_paths}}'
-          TASK_CONTEXT:
-            ref: 'merge (dict) (dict "CONTAINER_MOUNT_MODE" "ro") (.TASK_CONTEXT | default .)'
+          FMT_ARGS: '{{.markdown_paths}}'
 
   markdown/fix:
-    desc: Fix Markdown formatting
+    desc: Fix Markdown formatting.
     cmds:
       - task: markdown:fmt/fix
         vars:
-          FMT_PATHS: '{{.markdown_paths}}'
+          FMT_ARGS: '{{.markdown_paths}}'

@@ -35,7 +35,7 @@ and `linux/arm64`.
 Every image describes itself in `/etc/ci-image`:
 
 ```sh
-docker run --rm ghcr.io/mr-chelyshkin/ci/golang:1.27.1 cat /etc/ci-image
+docker run --rm ghcr.io/mr-chelyshkin/ci/golang:1.27.2 cat /etc/ci-image
 ```
 
 ## Taskfile consumers

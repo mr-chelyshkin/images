@@ -1,6 +1,7 @@
 # ci/nix
 
-Nix with nixfmt, statix, and deadnix.
+Nix with nixfmt, statix, and deadnix, and Python 3 with ruff, mypy, and pytest
+for the tooling that a Nix project keeps next to its code.
 
 - Variants: [`variants.yaml`](variants.yaml).
 - Installed versions: `cat /etc/ci-image` inside the image.
@@ -8,8 +9,9 @@ Nix with nixfmt, statix, and deadnix.
 ## Notes
 
 The image enables `nix-command` and flakes. Its `NIXPKGS_REV` build argument
-pins the formatter and linters; project dependencies remain controlled by the
-project's own lock file.
+pins the formatter, the linters, and the Python tools; project dependencies
+remain controlled by the project's own lock file. The Python environment has no
+other packages: it runs tooling that uses the standard library only.
 
 Run Nix commands as the image's default user (`root` inside the container) to
 allow writes to `/nix`.

@@ -1,5 +1,5 @@
 schema: 1
-description: "Nix CI image with nixfmt, statix, and deadnix."
+description: "Nix CI image with nixfmt, statix, deadnix, and Python with ruff, mypy, and pytest."
 
 variants:
   - tag: "2.35.2"

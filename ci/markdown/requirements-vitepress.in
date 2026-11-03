@@ -1,0 +1,2 @@
+-r requirements.in
+mdformat-frontmatter==2.1.2

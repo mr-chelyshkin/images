@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mdformat-vitepress"
+version = "1.1.0"
+description = "Preserve and format VitePress containers with mdformat"
+requires-python = ">=3.10"
+dependencies = ["mdformat>=1.0.0,<2", "mdit-py-plugins>=0.6.1"]
+
+[project.entry-points."mdformat.parser_extension"]
+vitepress = "mdformat_vitepress"
+
+[tool.setuptools.packages.find]
+include = ["mdformat_vitepress*"]

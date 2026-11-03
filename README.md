@@ -18,7 +18,7 @@ The publishing target prefix is `ghcr.io/mr-chelyshkin/`.
 | -- | -- |
 | [`ci/aws`](ci/aws) | AWS CLI v2. |
 | [`ci/golang`](ci/golang) | Go with gofumpt, golangci-lint, and govulncheck. |
-| [`ci/markdown`](ci/markdown) | mdformat with GitHub Flavored Markdown support. |
+| [`ci/markdown`](ci/markdown) | mdformat with GFM; 1.1.0 adds YAML frontmatter and VitePress containers. |
 | [`ci/nix`](ci/nix) | Nix with nixfmt, statix, deadnix, and python tooling. |
 | [`ci/node`](ci/node) | Node.js and npm. |
 | [`ci/proto`](ci/proto) | Buf and clang-format. |

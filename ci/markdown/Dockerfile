@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1
 # check=skip=InvalidDefaultArgInFrom
 ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS plugin-build
+
+RUN --mount=type=bind,source=requirements-build.txt,target=/tmp/requirements.txt,ro \
+  python -m pip install --no-cache-dir --require-hashes --no-deps -r /tmp/requirements.txt
+
+COPY vitepress /src/vitepress
+RUN python -m pip wheel --no-cache-dir --no-deps --no-build-isolation \
+  --wheel-dir /wheels /src/vitepress
+
 FROM ${BASE_IMAGE} AS image
 
 RUN apt-get update \
@@ -10,13 +19,27 @@ RUN apt-get update \
 ARG PYTHON_VERSION
 ARG MDFORMAT_VERSION
 ARG MDFORMAT_GFM_VERSION
+ARG REQUIREMENTS_FILE=requirements.txt
+ARG MDFORMAT_FRONTMATTER_VERSION
+ARG MDFORMAT_VITEPRESS_VERSION
 
-RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt,ro \
+RUN --mount=type=bind,source=.,target=/tmp/markdown,ro \
+  --mount=type=bind,from=plugin-build,source=/wheels,target=/tmp/wheels,ro \
   test "$(python --version)" = "Python ${PYTHON_VERSION}" \
-  && python -m pip install --no-cache-dir --require-hashes --no-deps -r /tmp/requirements.txt \
+  && python -m pip install --no-cache-dir --require-hashes --no-deps \
+    -r "/tmp/markdown/${REQUIREMENTS_FILE}" \
+  && if [ -n "${MDFORMAT_VITEPRESS_VERSION}" ]; then \
+    python -m pip install --no-cache-dir --no-deps \
+      "/tmp/wheels/mdformat_vitepress-${MDFORMAT_VITEPRESS_VERSION}-py3-none-any.whl"; \
+  fi \
   && python -m pip check \
-  && python -c 'from importlib.metadata import version; import sys; assert version("mdformat") == sys.argv[1]; assert version("mdformat-gfm") == sys.argv[2]' \
-    "${MDFORMAT_VERSION}" "${MDFORMAT_GFM_VERSION}"
+  && python -c 'from importlib.metadata import version; import sys; assert version("mdformat") == sys.argv[1]; assert version("mdformat-gfm") == sys.argv[2]; names = ("mdformat-frontmatter", "mdformat-vitepress"); assert all(version(name) == expected for name, expected in zip(names, sys.argv[3:]) if expected)' \
+    "${MDFORMAT_VERSION}" "${MDFORMAT_GFM_VERSION}" \
+    "${MDFORMAT_FRONTMATTER_VERSION}" "${MDFORMAT_VITEPRESS_VERSION}" \
+  && if [ -n "${MDFORMAT_VITEPRESS_VERSION}" ]; then \
+    python -c 'import mdformat.plugins; assert "vitepress" in mdformat.plugins.PARSER_EXTENSIONS' \
+    && python -m unittest discover -s /tmp/markdown/vitepress/tests; \
+  fi
 
 ARG BASE_IMAGE
 

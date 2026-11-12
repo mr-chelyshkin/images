@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: mr-chelyshkin/actions/task-run@v2
+      - uses: mr-chelyshkin/actions/task-run@v3
         with:
           task: ci/markdown/fmt
 
@@ -29,6 +29,6 @@ jobs:
     needs: [markdown]
     runs-on: ubuntu-24.04
     steps:
-      - uses: mr-chelyshkin/actions/job-results-check@v2
+      - uses: mr-chelyshkin/actions/job-results-check@v3
         with:
           results: ${{ toJSON(needs) }}

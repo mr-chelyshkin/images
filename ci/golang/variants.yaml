@@ -29,3 +29,10 @@ variants:
       GOFUMPT_VERSION: "v0.12.0"
       GOLANGCI_LINT_VERSION: "v2.15.0"
       GOVULNCHECK_VERSION: "v1.9.0"
+
+  - tag: "1.27.4"
+    build_args:
+      BASE_IMAGE: "golang:1.27.4"
+      GOFUMPT_VERSION: "v0.12.0"
+      GOLANGCI_LINT_VERSION: "v2.15.0"
+      GOVULNCHECK_VERSION: "v1.9.0"
